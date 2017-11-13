@@ -9,6 +9,8 @@ namespace NAppUpdate.Framework.Common
 	{
 		public string TempFolder { get; set; }
 
+        public string DestinationFolder { get; set; }
+
 		/// <summary>
 		/// Path to the backup folder used by the update process
 		/// </summary>

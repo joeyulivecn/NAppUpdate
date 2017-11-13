@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using NAppUpdate.Framework.Common;
@@ -6,175 +6,185 @@ using NAppUpdate.Framework.Utils;
 
 namespace NAppUpdate.Framework.Tasks
 {
-	[Serializable]
-	[UpdateTaskAlias("fileUpdate")]
-	public class FileUpdateTask : UpdateTaskBase
-	{
-		[NauField("localPath", "The local path of the file to update", true)]
-		public string LocalPath { get; set; }
+    [Serializable]
+    [UpdateTaskAlias("fileUpdate")]
+    public class FileUpdateTask : UpdateTaskBase
+    {
+        [NauField("localPath", "The local path of the file to update", true)]
+        public string LocalPath { get; set; }
 
-		[NauField("updateTo",
-			"File name on the remote location; same name as local path will be used if left blank"
-			, false)]
-		public string UpdateTo { get; set; }
+        [NauField("updateTo",
+            "File name on the remote location; same name as local path will be used if left blank"
+            , false)]
+        public string UpdateTo { get; set; }
 
-		[NauField("sha256-checksum", "SHA-256 checksum to validate the file after download (optional)", false)]
-		public string Sha256Checksum { get; set; }
+        [NauField("sha256-checksum", "SHA-256 checksum to validate the file after download (optional)", false)]
+        public string Sha256Checksum { get; set; }
 
-		[NauField("hotswap",
-			"Default update action is a cold update; check here if a hot file swap should be attempted"
-			, false)]
-		public bool CanHotSwap { get; set; }
+        [NauField("hotswap",
+            "Default update action is a cold update; check here if a hot file swap should be attempted"
+            , false)]
+        public bool CanHotSwap { get; set; }
 
-		private string _destinationFile, _backupFile, _tempFile;
+        private string _destinationFile, _backupFile, _tempFile;
 
-		public override void Prepare(Sources.IUpdateSource source)
-		{
-			if (string.IsNullOrEmpty(LocalPath))
-			{
-				UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "FileUpdateTask: LocalPath is empty, task is a noop");
-				return; // Errorneous case, but there's nothing to prepare to, and by default we prefer a noop over an error
-			}
+        public override void Prepare(Sources.IUpdateSource source)
+        {
+            if (string.IsNullOrEmpty(LocalPath))
+            {
+                UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "FileUpdateTask: LocalPath is empty, task is a noop");
+                return; // Errorneous case, but there's nothing to prepare to, and by default we prefer a noop over an error
+            }
 
-			string fileName;
-			if (!string.IsNullOrEmpty(UpdateTo))
-				fileName = UpdateTo;
-			else
-				fileName = LocalPath;
+            string fileName;
+            if (!string.IsNullOrEmpty(UpdateTo))
+                fileName = UpdateTo;
+            else
+                fileName = LocalPath;
 
-			_tempFile = null;
+            _tempFile = null;
 
-			string baseUrl = UpdateManager.Instance.BaseUrl;
-			string tempFileLocal = Path.Combine(UpdateManager.Instance.Config.TempFolder, Guid.NewGuid().ToString());
+            string baseUrl = UpdateManager.Instance.BaseUrl;
+            string tempFileLocal = Path.Combine(UpdateManager.Instance.Config.TempFolder, Guid.NewGuid().ToString());
 
-			UpdateManager.Instance.Logger.Log("FileUpdateTask: Downloading {0} with BaseUrl of {1} to {2}", fileName, baseUrl, tempFileLocal);
+            UpdateManager.Instance.Logger.Log("FileUpdateTask: Downloading {0} with BaseUrl of {1} to {2}", fileName, baseUrl, tempFileLocal);
 
-			if (!source.GetData(fileName, baseUrl, OnProgress, ref tempFileLocal))
-				throw new UpdateProcessFailedException("FileUpdateTask: Failed to get file from source");
+            if (!source.GetData(fileName, baseUrl, OnProgress, ref tempFileLocal))
+                 UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "FileUpdateTask: Failed to get file from source");
 
-			_tempFile = tempFileLocal;
-			if (_tempFile == null)
-				throw new UpdateProcessFailedException("FileUpdateTask: Failed to get file from source");
+            _tempFile = tempFileLocal;
+            if (_tempFile == null)
+                throw new UpdateProcessFailedException("FileUpdateTask: Failed to get file from source");
 
-			if (!string.IsNullOrEmpty(Sha256Checksum))
-			{
-				string checksum = FileChecksum.GetSHA256Checksum(_tempFile);
-				if (!checksum.Equals(Sha256Checksum))
-					throw new UpdateProcessFailedException(string.Format("FileUpdateTask: Checksums do not match; expected {0} but got {1}", Sha256Checksum, checksum));
-			}
+            if (!string.IsNullOrEmpty(Sha256Checksum))
+            {
+                string checksum = Utils.FileChecksum.GetSHA256Checksum(_tempFile);
+                if (!checksum.Equals(Sha256Checksum))
+                    throw new UpdateProcessFailedException(string.Format("FileUpdateTask: Checksums do not match; expected {0} but got {1}", Sha256Checksum, checksum));
+            }
 
-			_destinationFile = Path.Combine(Path.GetDirectoryName(UpdateManager.Instance.ApplicationPath), LocalPath);
-			UpdateManager.Instance.Logger.Log("FileUpdateTask: Prepared successfully; destination file: {0}", _destinationFile);
-		}
+            _destinationFile = Path.Combine(UpdateManager.Instance.Config.DestinationFolder, LocalPath);
+            UpdateManager.Instance.Logger.Log("FileUpdateTask: Prepared successfully; destination file: {0}", _destinationFile);
+        }
 
-		public override TaskExecutionStatus Execute(bool coldRun)
-		{
-			if (string.IsNullOrEmpty(LocalPath))
-			{
-				UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "FileUpdateTask: LocalPath is empty, task is a noop");
-				return TaskExecutionStatus.Successful; // Errorneous case, but there's nothing to prepare to, and by default we prefer a noop over an error
-			}
+        public override TaskExecutionStatus Execute(bool coldRun)
+        {
+            if (!File.Exists(_tempFile))
+            {
+                return TaskExecutionStatus.Failed;
+            }
 
-			var dirName = Path.GetDirectoryName(_destinationFile);
-			if (!Directory.Exists(dirName))
-			{
-				Utils.FileSystem.CreateDirectoryStructure(dirName, false);
-			}
+            // JOE: forcely set CanHotSwap to true otherwise this should configured in feed file
+            CanHotSwap = true;
 
-			// Create a backup copy if target exists
-			if (_backupFile == null && File.Exists(_destinationFile))
-			{
-				if (!Directory.Exists(Path.GetDirectoryName(Path.Combine(UpdateManager.Instance.Config.BackupFolder, LocalPath))))
-				{
-					string backupPath = Path.GetDirectoryName(Path.Combine(UpdateManager.Instance.Config.BackupFolder, LocalPath));
-					Utils.FileSystem.CreateDirectoryStructure(backupPath, false);
-				}
-				_backupFile = Path.Combine(UpdateManager.Instance.Config.BackupFolder, LocalPath);
-				File.Copy(_destinationFile, _backupFile, true);
-			}
+            if (string.IsNullOrEmpty(LocalPath))
+            {
+                UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "FileUpdateTask: LocalPath is empty, task is a noop");
+                return TaskExecutionStatus.Successful; // Errorneous case, but there's nothing to prepare to, and by default we prefer a noop over an error
+            }
 
-			// Only allow execution if the apply attribute was set to hot-swap, or if this is a cold run
-			if (CanHotSwap || coldRun)
-			{
-				if (File.Exists(_destinationFile))
-				{
-					FileLockWait();
+            var dirName = Path.GetDirectoryName(_destinationFile);
 
-					if (!PermissionsCheck.HaveWritePermissionsForFileOrFolder(_destinationFile))
-					{
-						if (coldRun)
-						{
-							UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "Don't have permissions to touch {0}", _destinationFile);
-							File.Delete(_destinationFile); // get the original exception from the system
-						}
-						CanHotSwap = false;
-					}
-				}
+            if (!Directory.Exists(dirName))
+            {
+                Utils.FileSystem.CreateDirectoryStructure(dirName, false);
+            }
 
-				try
-				{
-					if (File.Exists(_destinationFile))
-					{
-						FileSystem.CopyAccessControl(new FileInfo(_destinationFile), new FileInfo(_tempFile));
+            // Create a backup copy if target exists
+            if (_backupFile == null && File.Exists(_destinationFile))
+            {
+                if (!Directory.Exists(Path.GetDirectoryName(Path.Combine(UpdateManager.Instance.Config.BackupFolder, LocalPath))))
+                {
+                    string backupPath = Path.GetDirectoryName(Path.Combine(UpdateManager.Instance.Config.BackupFolder, LocalPath));
+                    Utils.FileSystem.CreateDirectoryStructure(backupPath, false);
+                }
 
-						File.Delete(_destinationFile);
-					}
-					File.Move(_tempFile, _destinationFile);
-					_tempFile = null;
-				}
-				catch (Exception ex)
-				{
-					if (coldRun)
-					{
-						ExecutionStatus = TaskExecutionStatus.Failed;
-						throw new UpdateProcessFailedException("Could not replace the file", ex);
-					}
+                _backupFile = Path.Combine(UpdateManager.Instance.Config.BackupFolder, LocalPath);
+                File.Copy(_destinationFile, _backupFile, true);
+            }
 
-					// Failed hot swap file tasks should now downgrade to cold tasks automatically
-					CanHotSwap = false;
-				}
-			}
+            // Only allow execution if the apply attribute was set to hot-swap, or if this is a cold run
+            if (CanHotSwap || coldRun)
+            {
+                if (File.Exists(_destinationFile))
+                {
+                    FileLockWait();
 
-			if (coldRun || CanHotSwap)
-				// If we got thus far, we have completed execution
-				return TaskExecutionStatus.Successful;
+                    if (!PermissionsCheck.HaveWritePermissionsForFileOrFolder(_destinationFile))
+                    {
+                        if (coldRun)
+                        {
+                            UpdateManager.Instance.Logger.Log(Logger.SeverityLevel.Warning, "Don't have permissions to touch {0}", _destinationFile);
+                            File.Delete(_destinationFile); // get the original exception from the system
+                        }
+                        CanHotSwap = false;
+                    }
+                }
 
-			// Otherwise, figure out what restart method to use
-			if (File.Exists(_destinationFile) && !Utils.PermissionsCheck.HaveWritePermissionsForFileOrFolder(_destinationFile))
-			{
-				return TaskExecutionStatus.RequiresPrivilegedAppRestart;
-			}
-			return TaskExecutionStatus.RequiresAppRestart;
-		}
+                try
+                {
+                    if (File.Exists(_destinationFile))
+                    {
+                        File.Delete(_destinationFile);
+                    }
 
-		public override bool Rollback()
-		{
-			if (string.IsNullOrEmpty(_destinationFile))
-				return true;
+                    File.Move(_tempFile, _destinationFile);
+                    _tempFile = null;
+                }
+                catch (Exception ex)
+                {
+                    if (coldRun)
+                    {
+                        ExecutionStatus = TaskExecutionStatus.Failed;
+                        throw new UpdateProcessFailedException("Could not replace the file", ex);
+                    }
 
-			// Copy the backup copy back to its original position
-			if (File.Exists(_destinationFile))
-				File.Delete(_destinationFile);
-			File.Copy(_backupFile, _destinationFile, true);
+                    // Failed hot swap file tasks should now downgrade to cold tasks automatically
+                    CanHotSwap = false;
+                }
+            }
 
-			return true;
-		}
-		/// <summary>
-		/// To mitigate problems with the files being locked even though the application mutex has been released.
-		/// https://github.com/synhershko/NAppUpdate/issues/35
-		/// </summary>
-		private void FileLockWait()
-		{
-			int attempt = 0;
-			while (FileSystem.IsFileLocked(new FileInfo(_destinationFile)))
-			{
-				Thread.Sleep(500);
-				attempt++;
-				if (attempt == 10)
-				{
-					throw new UpdateProcessFailedException("Failed to update, the file is locked: " + _destinationFile);
-				}
-			}
-		}
-	}
+            if (coldRun || CanHotSwap)
+                // If we got thus far, we have completed execution
+                return TaskExecutionStatus.Successful;
+
+            // Otherwise, figure out what restart method to use
+            if (File.Exists(_destinationFile) && !Utils.PermissionsCheck.HaveWritePermissionsForFileOrFolder(_destinationFile))
+            {
+                return TaskExecutionStatus.RequiresPrivilegedAppRestart;
+            }
+            return TaskExecutionStatus.RequiresAppRestart;
+        }
+
+        public override bool Rollback()
+        {
+            if (string.IsNullOrEmpty(_destinationFile))
+                return true;
+
+            // Copy the backup copy back to its original position
+            if (File.Exists(_destinationFile))
+                File.Delete(_destinationFile);
+            File.Copy(_backupFile, _destinationFile, true);
+
+            return true;
+        }
+
+        /// <summary>
+        /// To mitigate problems with the files being locked even though the application mutex has been released.
+        /// https://github.com/synhershko/NAppUpdate/issues/35
+        /// </summary>
+        private void FileLockWait()
+        {
+            int attempt = 0;
+            while (FileSystem.IsFileLocked(new FileInfo(_destinationFile)))
+            {
+                Thread.Sleep(500);
+                attempt++;
+                if (attempt == 10)
+                {
+                    throw new UpdateProcessFailedException("Failed to update, the file is locked: " + _destinationFile);
+                }
+            }
+        }
+    }
 }

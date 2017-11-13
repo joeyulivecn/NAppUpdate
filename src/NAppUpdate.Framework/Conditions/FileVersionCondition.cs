@@ -26,6 +26,8 @@ namespace NAppUpdate.Framework.Conditions
 				? LocalPath
 				: Utils.Reflection.GetNauAttribute(task, "LocalPath") as string;
 
+            localPath = Path.Combine(UpdateManager.Instance.Config.DestinationFolder, localPath);
+
 			// local path is invalid, we can't check for anything so we will return as if the condition was met
 			if (string.IsNullOrEmpty(localPath))
 				return true;

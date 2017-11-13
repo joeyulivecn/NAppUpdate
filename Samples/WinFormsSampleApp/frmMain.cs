@@ -19,6 +19,10 @@ namespace WinFormsSampleApp
 			// UpdateManager initialization
 			UpdateManager updManager = UpdateManager.Instance;
 			updManager.UpdateSource = new SimpleWebSource( /* update feed URL */);
+            updManager.UpdateSource = new SimpleWebSource("http://127.0.0.1/AppServer/SampleUpdateFeed.xml");
+            updManager.Config.DestinationFolder = @"c:\SampleApp";
+            updManager.Config.TempFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EMR\\Updates");
+            updManager.Config.BackupFolder = @"c:\SampleApp_bak";
 			updManager.Config.TempFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NAppUpdateWinFormsSample\\Updates");
 			// If you don't call this method, the updater.exe will continually attempt to connect the named pipe and get stuck.
 			// Therefore you should always implement this method call.

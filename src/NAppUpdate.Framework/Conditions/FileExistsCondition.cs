@@ -22,7 +22,9 @@ namespace NAppUpdate.Framework.Conditions
 			if (string.IsNullOrEmpty(localPath))
 				return true;
 
-			return File.Exists(localPath);
+            // set full path
+            localPath = Path.Combine(UpdateManager.Instance.Config.DestinationFolder, localPath);
+            return File.Exists(localPath);
 		}
 	}
 }

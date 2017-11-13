@@ -2,7 +2,6 @@
 using System.IO;
 using NAppUpdate.Framework.Common;
 using NAppUpdate.Framework.Tasks;
-using NAppUpdate.Framework.Utils;
 
 namespace NAppUpdate.Framework.Conditions
 {
@@ -27,6 +26,9 @@ namespace NAppUpdate.Framework.Conditions
 			// local path is invalid, we can't check for anything so we will return as if the condition was met
 			if (string.IsNullOrEmpty(localPath))
 				return true;
+            
+            // set full path
+            localPath = Path.Combine(UpdateManager.Instance.Config.DestinationFolder, localPath);
 
 			// if the local file does not exist, checksums don't match vacuously
 			if (!File.Exists(localPath))
@@ -34,7 +36,7 @@ namespace NAppUpdate.Framework.Conditions
 
 			if ("sha256".Equals(ChecksumType, StringComparison.InvariantCultureIgnoreCase))
 			{
-				var sha256 = FileChecksum.GetSHA256Checksum(localPath);
+				var sha256 = Utils.FileChecksum.GetSHA256Checksum(localPath);
 				if (!string.IsNullOrEmpty(sha256) && sha256.Equals(Checksum, StringComparison.InvariantCultureIgnoreCase))
 					return true;
 			}
