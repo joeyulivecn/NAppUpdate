@@ -10,6 +10,7 @@ using NAppUpdate.Framework;
 using NAppUpdate.Framework.Sources;
 using System.IO;
 using NAppUpdate.Framework.Common;
+using System.Diagnostics;
 
 namespace WinFormsProgressSample
 {
@@ -27,7 +28,7 @@ namespace WinFormsProgressSample
 			UpdateManager updManager = UpdateManager.Instance;
 			updManager.UpdateFeedReader = new DummyReader();
 			updManager.UpdateSource = new MemorySource(string.Empty);
-            updManager.Config.DestinationFolder = @"c:\SampleApp";
+            updManager.Config.DestinationFolder = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
             updManager.Config.TempFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SampleApp\\Updates");
             updManager.Config.BackupFolder = @"c:\SampleApp_bak";
             updManager.ReportProgress += updManager_ReportProgress;
