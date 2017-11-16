@@ -15,10 +15,6 @@ namespace FeedBuilder
             {
                 var builder = new FeedCliBuilder();
                 builder.Run();
-
-                //Application.EnableVisualStyles();
-                //Application.SetCompatibleTextRenderingDefault(false);
-                //Application.Run(new frmMain());
             }
             catch (Exception ex)
             {

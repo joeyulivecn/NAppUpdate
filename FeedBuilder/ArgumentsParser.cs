@@ -10,7 +10,6 @@ namespace FeedBuilder
 	{
 		public bool HasArgs { get; set; }
 		public string FileName { get; set; }
-		public bool ShowGui { get; set; }
 		public bool Build { get; set; }
 		public bool OpenOutputsFolder { get; set; }
 
@@ -24,11 +23,6 @@ namespace FeedBuilder
 				if (arg == "build")
 				{
 					Build = true;
-					HasArgs = true;
-				}
-				else if (arg == "showgui")
-				{
-					ShowGui = true;
 					HasArgs = true;
 				}
 				else if (arg == "openoutputs")

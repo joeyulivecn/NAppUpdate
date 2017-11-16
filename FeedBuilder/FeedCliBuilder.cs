@@ -236,7 +236,7 @@ namespace FeedBuilder
                 outputDir += "\\";
             }
 
-            FileSystemEnumerator enumerator = new FileSystemEnumerator(outputDir, config.IncludeFileTypes, false);
+            FileSystemEnumerator enumerator = new FileSystemEnumerator(outputDir, config.IncludeFileTypes, true);
             foreach (FileInfo fi in enumerator.Matches())
             {
                 string filePath = fi.FullName;
