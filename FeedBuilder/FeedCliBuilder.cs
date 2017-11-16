@@ -15,41 +15,28 @@ namespace FeedBuilder
     /// </summary>
     public class FeedCliBuilder
     {
-        private ArgumentsParser _argParser;
-        private string FileName { get; set; }
+        private string ConfigFileName { get; set; }
         private FeedBuildConfiguration config = null;
         private Dictionary<string, FileInfoEx> fileList = new Dictionary<string,FileInfoEx>();
 
-        public void Run()
+        public FeedCliBuilder(Options options)
         {
-            string[] args = Environment.GetCommandLineArgs();
-
-            // The first arg is the path to ourself
-            _argParser = new ArgumentsParser(args);
-            if (!_argParser.HasArgs) return;
-            FileName = _argParser.FileName;
-
-            if (string.IsNullOrEmpty(FileName))
-            {
-                Console.WriteLine("Config file name is empty.");
-                return;
-            }
-
-            if (!File.Exists(FileName))
-            {
-                Console.WriteLine("Config file does not exist.");
-                return;
-            }
+            ConfigFileName = options.ConfigFileName;
 
             var serializer = new XmlSerializer(typeof(FeedBuildConfiguration));
-            using (Stream stream = new FileStream(FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (Stream stream = new FileStream(ConfigFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 config = serializer.Deserialize(stream) as FeedBuildConfiguration;
             }
 
-            ReadFiles();
+            config.OutputFolder = options.OutputFolder;
+            config.FeedXML = options.FeedXML;
+        }
 
-            if (_argParser.Build) Build();
+        public void Run()
+        {
+            ReadFiles();
+            Build();
         }
 
         private void Build()
@@ -159,6 +146,14 @@ namespace FeedBuilder
                 task.AppendChild(conds);
                 tasks.AppendChild(task);
 
+                // rename file with AddExtension if CopyFiles is false
+                if (!config.CopyFiles && !string.IsNullOrEmpty(config.AddExtension))
+                {
+                    var fullName = fileInfoEx.FileInfo.FullName;
+                    File.Move(fullName, string.Format("{0}.{1}", fullName, config.AddExtension));
+                }
+
+                // copy files
                 if (config.CopyFiles)
                 {
                     if (CopyFile(fileInfoEx.FileInfo.FullName, destFile)) itemsCopied++;
