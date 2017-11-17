@@ -19,7 +19,7 @@ namespace FeedBuilder
         private FeedBuildConfiguration config = null;
         private Dictionary<string, FileInfoEx> fileList = new Dictionary<string,FileInfoEx>();
 
-        public FeedCliBuilder(Options options)
+        public void Run(Options options)
         {
             ConfigFileName = options.ConfigFileName;
 
@@ -31,15 +31,12 @@ namespace FeedBuilder
 
             config.OutputFolder = options.OutputFolder;
             config.FeedXML = options.FeedXML;
-        }
 
-        public void Run()
-        {
             ReadFiles();
-            Build();
+            Build(options);
         }
 
-        private void Build()
+        private void Build(Options options)
         {
             Console.WriteLine("Building NAppUpdater feed '{0}'", config.BaseURL.Trim());
 
@@ -146,8 +143,10 @@ namespace FeedBuilder
                 task.AppendChild(conds);
                 tasks.AppendChild(task);
 
-                // rename file with AddExtension if CopyFiles is false
-                if (!config.CopyFiles && !string.IsNullOrEmpty(config.AddExtension))
+                // rename file with AddExtension
+                if (!config.CopyFiles && 
+                    options.AddExtension && 
+                    !string.IsNullOrEmpty(config.AddExtension))
                 {
                     var fullName = fileInfoEx.FileInfo.FullName;
                     File.Move(fullName, string.Format("{0}.{1}", fullName, config.AddExtension));
