@@ -418,8 +418,12 @@ namespace NAppUpdate.Framework
                         catch (Exception ex)
                         {
                             task.ExecutionStatus = TaskExecutionStatus.Failed; // mark the failing task before rethrowing
-                            //throw new UpdateProcessFailedException("Update task execution failed: " + task.Description, ex);
-                            Logger.Log("Update task execution failed: " + task.Description, ex);
+
+                            var fileUpdateTask = task as FileUpdateTask;
+                            if (fileUpdateTask != null)
+                                Logger.Log("Update task execution failed: " + fileUpdateTask.LocalPath, ex);
+                            else
+                                Logger.Log("Update task execution failed: " + task.Description, ex);
                         }
 
                         if (task.ExecutionStatus == TaskExecutionStatus.RequiresAppRestart
@@ -435,8 +439,11 @@ namespace NAppUpdate.Framework
                         // to be Ok (cold updates are already handled above)
                         if (task.ExecutionStatus != TaskExecutionStatus.Successful)
                         {
-                            //throw new UpdateProcessFailedException("Update task execution failed: " + task.Description);
-                            Logger.Log("Update task execution failed: " + task.Description);
+                            var fileUpdateTask = task as FileUpdateTask;
+                            if (fileUpdateTask != null)
+                                Logger.Log("Update task execution failed: " + fileUpdateTask.LocalPath);
+                            else
+                                Logger.Log("Update task execution failed: " + task.Description);
                         }
                     }
 

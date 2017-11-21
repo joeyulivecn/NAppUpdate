@@ -14,86 +14,115 @@ using System.Diagnostics;
 
 namespace WinFormsProgressSample
 {
-	public partial class Form1 : Form
-	{
-		public Form1()
-		{
-			InitializeComponent();
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
 
-			progressBar1.Minimum = 0;
-			progressBar1.Maximum = 100;
-			progressBar1.Step = 1;
+            progressBar1.Minimum = 0;
+            progressBar1.Maximum = 100;
+            progressBar1.Step = 1;
 
-			// UpdateManager initialization
-			UpdateManager updManager = UpdateManager.Instance;
-			updManager.UpdateFeedReader = new DummyReader();
-			updManager.UpdateSource = new MemorySource(string.Empty);
+            // UpdateManager initialization
+            UpdateManager updManager = UpdateManager.Instance;
+            updManager.UpdateFeedReader = new DummyReader();
+            updManager.UpdateSource = new MemorySource(string.Empty);
             updManager.Config.DestinationFolder = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
             updManager.Config.TempFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SampleApp\\Updates");
             updManager.Config.BackupFolder = @"c:\SampleApp_bak";
+            updManager.Config.DownloadingMessage = "Downloading files... ({0} / {1})";
             updManager.ReportProgress += updManager_ReportProgress;
             updManager.ReinstateIfRestarted();
 
             this.Load += Form1_Load;
-		}
+        }
 
         void Form1_Load(object sender, EventArgs e)
         {
+
             UpdateManager updManager = UpdateManager.Instance;
-            if (updManager.State != UpdateManager.UpdateProcessState.NotChecked)
-            {
-                MessageBox.Show("Update process has already initialized; current state: " + updManager.State.ToString());
-                return;
-            }
+            //if (updManager.State != UpdateManager.UpdateProcessState.NotChecked)
+            //{
+            //    MessageBox.Show("Update process has already initialized; current state: " + updManager.State.ToString());
+            //    return;
+            //}
 
             lblOverview.Text = "BeginCheckForUpdates";
 
-            //updManager.BeginCheckForUpdates(
-            //    asyncResult => UpdateManager.Instance.BeginPrepareUpdates(ar2 =>
+            updManager.BeginCheckForUpdates(
+                asyncResult => {
+                    var upar = asyncResult as UpdateProcessAsyncResult;
+
+
+                    UpdateManager.Instance.BeginPrepareUpdates(ar2 =>
+                        {                   
+                            lblOverview.Invoke(new Action(() => lblOverview.Text = "BeginPrepareUpdates"));
+
+                            if (updManager.UpdatesAvailable == 0)
+                            {
+                                MessageBox.Show("Your software is up to date");
+                                this.Close();
+                                return;
+                            }
+
+                            //DialogResult dr = MessageBox.Show(string.Format("Updates are available to your software ({0} total). Do you want to download and prepare them now? You can always do this at a later time.", updManager.UpdatesAvailable), "Software updates available", MessageBoxButtons.YesNo);
+ 
+
+                        },
+                        null);
+                }, null);
+            
+            
+            UpdateManager.Instance.BeginPrepareUpdates(ar2 =>
+                {                   
+                    lblOverview.Invoke(new Action(() => lblOverview.Text = "BeginPrepareUpdates"));
+
+                    if (updManager.UpdatesAvailable == 0)
+                    {
+                        MessageBox.Show("Your software is up to date");
+                        this.Close();
+                        return;
+                    }
+
+                    //DialogResult dr = MessageBox.Show(string.Format("Updates are available to your software ({0} total). Do you want to download and prepare them now? You can always do this at a later time.", updManager.UpdatesAvailable), "Software updates available", MessageBoxButtons.YesNo);
+ 
+
+                },
+                null),
+                null)};
+
+            //try
+            //{
+            //    lblOverview.Text = "CheckForUpdates";
+
+            //    // Check for updates - returns true if relevant updates are found (after processing all the tasks and
+            //    // conditions)
+            //    // Throws exceptions in case of bad arguments or unexpected results
+
+            //    updManager.CheckForUpdates();
+
+            //}
+            //catch (Exception ex)
+            //{
+            //    if (ex is NAppUpdateException)
             //    {
-            //        if (updManager.UpdatesAvailable == 0)
-            //        {
-            //            MessageBox.Show("Your software is up to date");
-            //            this.Close();
-            //            return;
-            //        }
+            //        // This indicates a feed or network error; ex will contain all the info necessary
+            //        // to deal with that
+            //    }
+            //    else MessageBox.Show(ex.ToString());
+            //    return;
+            //}
 
-            //        updManager.BeginPrepareUpdates(OnPrepareUpdatesCompleted, null);
-            //    },
-            //    null),
-            //    null);
+            //if (updManager.UpdatesAvailable == 0)
+            //{
+            //    MessageBox.Show("Your software is up to date");
+            //    return;
+            //}
 
-            try
-            {
-                lblOverview.Text = "CheckForUpdates";
-
-                // Check for updates - returns true if relevant updates are found (after processing all the tasks and
-                // conditions)
-                // Throws exceptions in case of bad arguments or unexpected results
-
-                updManager.CheckForUpdates();
-
-            }
-            catch (Exception ex)
-            {
-                if (ex is NAppUpdateException)
-                {
-                    // This indicates a feed or network error; ex will contain all the info necessary
-                    // to deal with that
-                }
-                else MessageBox.Show(ex.ToString());
-                return;
-            }
-
-            if (updManager.UpdatesAvailable == 0)
-            {
-                MessageBox.Show("Your software is up to date");
-                return;
-            }
-
-            DialogResult dr = MessageBox.Show(string.Format("Updates are available to your software ({0} total). Do you want to download and prepare them now? You can always do this at a later time.", updManager.UpdatesAvailable), "Software updates available", MessageBoxButtons.YesNo);
-            lblOverview.Text = "BeginPrepareUpdates";
-            if (dr == DialogResult.Yes) updManager.BeginPrepareUpdates(OnPrepareUpdatesCompleted, null);
+            //DialogResult dr = MessageBox.Show(string.Format("Updates are available to your software ({0} total). Do you want to download and prepare them now? You can always do this at a later time.", updManager.UpdatesAvailable), "Software updates available", MessageBoxButtons.YesNo);
+            //lblOverview.Text = "BeginPrepareUpdates";
+            //if (dr == DialogResult.Yes) updManager.BeginPrepareUpdates(OnPrepareUpdatesCompleted, null);
 
             //updManager.BeginPrepareUpdates(OnPrepareUpdatesCompleted, null);
         }
@@ -137,6 +166,8 @@ namespace WinFormsProgressSample
             {
                 MessageBox.Show(string.Format("Error while trying to install software updates{0}{1}", Environment.NewLine, ex));
             }
+
+            updManager.Logger.Dump();
         }
 
         void updManager_ReportProgress(UpdateProgressInfo status)
@@ -153,5 +184,5 @@ namespace WinFormsProgressSample
                 progressBar1.Value = status.Percentage;
             }));
         }
-	}
+    }
 }

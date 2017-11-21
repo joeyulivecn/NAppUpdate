@@ -76,19 +76,23 @@ namespace NAppUpdate.Framework.Utils
             }
             catch (WebException ex)
             {
-                 UpdateManager.Instance.Logger.Log(string.Format("Error occurs when downloading file: '{0}'. Datails: {1}", _uri, ex));
-                 return false;
+                UpdateManager.Instance.Logger.Log(string.Format("Error occurs when downloading file: '{0}'. Datails: {1}", _uri, ex));
+                return false;
             }
         }
 
         private void ReportProgress(Action<UpdateProgressInfo> onProgress, long totalBytes, long downloadSize)
         {
+            var downloadingMessage = string.IsNullOrEmpty(UpdateManager.Instance.Config.DownloadingMessage) ?
+                "Downloading... ({0} / {1} completed)" :
+                UpdateManager.Instance.Config.DownloadingMessage;
+
             if (onProgress != null) onProgress(new DownloadProgressInfo
             {
                 DownloadedInBytes = totalBytes,
                 FileSizeInBytes = downloadSize,
                 Percentage = (int)(((float)totalBytes / (float)downloadSize) * 100),
-                Message = string.Format("Downloading... ({0} / {1} completed)", ToFileSizeString(totalBytes), ToFileSizeString(downloadSize)),
+                Message = string.Format(downloadingMessage, ToFileSizeString(totalBytes), ToFileSizeString(downloadSize)),
                 StillWorking = totalBytes == downloadSize,
             });
         }

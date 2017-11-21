@@ -11,6 +11,11 @@ namespace NAppUpdate.Framework.Common
 
         public string DestinationFolder { get; set; }
 
+        /// <summary>
+        /// Message to repleace the default message format "Downloading... ({0} / {1} completed)"
+        /// </summary>
+        public string DownloadingMessage { get; set; }
+
 		/// <summary>
 		/// Path to the backup folder used by the update process
 		/// </summary>
