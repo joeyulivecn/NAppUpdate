@@ -35,10 +35,11 @@ namespace NAppUpdate.Framework.Sources
 			{
 				Dns.GetHostEntry(uri.Host);
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
-				throw new WebException(string.Format("Failed to resolve {0}. Check your connectivity.", uri.Host),
-					WebExceptionStatus.ConnectFailure);
+                // eat this exception since sometimes the network works but this method failed...
+				UpdateManager.Instance.Logger.Log(string.Format("Failed to resolve {0}. Check your connectivity. {1}{2}", uri.Host),
+                    WebExceptionStatus.ConnectFailure, Environment.NewLine, e);
 			}
 		}
 
